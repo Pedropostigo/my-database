@@ -1,9 +1,9 @@
 import os
 
-from column_class import Column
+from .column_class import Column
 
-from metadata_handler import MetadataHandler
-from utils.path_helpers import PathHelper
+from .metadata_handler import MetadataHandler
+from .utils.path_helpers import PathHelper
 
 class SQLExecuter:
     def __init__(self):
@@ -34,7 +34,7 @@ class SQLExecuter:
         if os.path.isdir(table_path):
             if not os.path.isfile(block_path):
                 with open(block_path, "w") as b:
-                    b.write(table_header)
+                    b.write(table_header + "\n")
                 
                 table_metadata['table_num_blocks'] += 1
                 MetadataHandler.write_table_metadata(table_name, table_metadata)
@@ -60,13 +60,33 @@ class SQLExecuter:
             # remove the metadata of the file
             os.remove(table_metadata_path)     
 
+    def insert(self, table_name:str, columns:list[str], values:list):
+        table_metadata = MetadataHandler.read_table_metadata(table_name)
+
+        counter_insert_column = 0
+        values_to_insert = []
+        
+        for col in table_metadata['table_columns']:
+            if col['column_name'] in columns:
+                values_to_insert.append(str(values[counter_insert_column]))
+                counter_insert_column += 1
+            else:
+                values_to_insert.append('')
+        
+        block_path = PathHelper.block_path(table_name, table_metadata['table_num_blocks'] - 1)
+        with open(block_path, 'a') as f:
+            f.write(",".join(values_to_insert) + "\n")
 
 if __name__ == '__main__':
 
     col_1 = Column('str', "col_str")
     col_2 = Column('int', "col_int")
 
-    # SQLExecuter().create_table("table1", columns=[col_1, col_2])
-    # SQLExecuter().create_block("table1", 0)
+    SQLExecuter().create_table("table1", columns=[col_1, col_2])
+    SQLExecuter().create_block("table1", 0)
 
-    SQLExecuter().delete_table("table1")
+    SQLExecuter().insert("table1", ["col_str", "col_int"], ['A', 2])
+    SQLExecuter().insert("table1", ["col_str"], ['B'])
+    SQLExecuter().insert("table1", ["col_int"], [3])
+
+    # SQLExecuter().delete_table("table1")
