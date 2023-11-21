@@ -1,9 +1,9 @@
 import os
 
-from .column_class import Column
+from src.column_class import Column
 
-from .metadata_handler import MetadataHandler
-from .utils.path_helpers import PathHelper
+from src.metadata_handler import MetadataHandler
+from src.utils.path_helpers import PathHelper
 
 class SQLExecuter:
     def __init__(self):
@@ -60,18 +60,25 @@ class SQLExecuter:
             # remove the metadata of the file
             os.remove(table_metadata_path)     
 
+    def _format_values_insert(self, columns_table:list[str], 
+                              columns_insert:list[str], values_insert:list):
+        
+        counter_insert_column = 0
+        result = []
+        
+        for col in columns_table:
+            if col in columns_insert:
+                result.append(str(values_insert[counter_insert_column]))
+                counter_insert_column += 1
+            else:
+                result.append('')
+        return result
+
     def insert(self, table_name:str, columns:list[str], values:list):
         table_metadata = MetadataHandler.read_table_metadata(table_name)
 
-        counter_insert_column = 0
-        values_to_insert = []
-        
-        for col in table_metadata['table_columns']:
-            if col['column_name'] in columns:
-                values_to_insert.append(str(values[counter_insert_column]))
-                counter_insert_column += 1
-            else:
-                values_to_insert.append('')
+        columns_table = [i['column_name'] for i in table_metadata['table_columns']]
+        values_to_insert = self._format_values_insert(columns_table, columns, values)
         
         block_path = PathHelper.block_path(table_name, table_metadata['table_num_blocks'] - 1)
         with open(block_path, 'a') as f:
