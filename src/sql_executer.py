@@ -1,13 +1,16 @@
 import os
 
+from column_class import Column
+
 from metadata_handler import MetadataHandler
+from utils.path_helpers import PathHelper
 
 class SQLExecuter:
     def __init__(self):
         pass
 
-    def create_table(self, table_name:str):
-        table_path = os.path.join("data", "files", table_name)
+    def create_table(self, table_name:str, columns: list[Column]):
+        table_path = PathHelper.table_path(table_name)
 
         # check that the table doesn't exist before creating
         if not os.path.isdir(table_path):
@@ -16,23 +19,54 @@ class SQLExecuter:
             # create the metadata file
             table_metadata = MetadataHandler.create_table_metadata()
             table_metadata['table_name'] = table_name
+            table_metadata['table_columns'] = [i.to_dict() for i in columns]
             MetadataHandler.write_table_metadata(table_name, table_metadata)
 
     def create_block(self, table_name:str, block_num:int):
-        table_path = os.path.join("data", "files", table_name)
-        block_path = os.path.join("data", "files", table_name, 
-                                  table_name + "_" + str(block_num) + ".csv")
+        table_path = PathHelper.table_path(table_name)
+        block_path = PathHelper.block_path(table_name, block_num)
         
+        # update number of blocks
+        table_metadata = MetadataHandler.read_table_metadata(table_name)
+        
+        table_header = ",".join([i['column_name'] for i in table_metadata['table_columns']])
+
         if os.path.isdir(table_path):
             if not os.path.isfile(block_path):
                 with open(block_path, "w") as b:
-                    b.write("Hello wold")
+                    b.write(table_header)
                 
-                # update number of blocks
-                table_metadata = MetadataHandler.read_table_metadata(table_name)
                 table_metadata['table_num_blocks'] += 1
                 MetadataHandler.write_table_metadata(table_name, table_metadata)
 
+    def delete_table(self, table_name:str):
+        table_path = PathHelper.table_path(table_name)
+        table_metadata_path = PathHelper.table_metadata_path(table_name)
+
+        if os.path.isdir(table_path) and os.path.isfile(table_metadata_path):
+            dir_walk = list(os.walk(table_path))
+
+            # remove all the files in the table directory
+            for dir in dir_walk:
+                for file in dir[2]:
+                    if os.path.isfile(os.path.join(dir[0], file)):
+                        os.remove(os.path.join(dir[0], file))
+
+            # remove all the folders in the table directory
+            for dir in reversed(dir_walk):
+                if os.path.isdir(dir[0]):
+                    os.rmdir(dir[0])
+
+            # remove the metadata of the file
+            os.remove(table_metadata_path)     
+
+
 if __name__ == '__main__':
-    SQLExecuter().create_table("table1")
-    SQLExecuter().create_block("table1", 0)
+
+    col_1 = Column('str', "col_str")
+    col_2 = Column('int', "col_int")
+
+    # SQLExecuter().create_table("table1", columns=[col_1, col_2])
+    # SQLExecuter().create_block("table1", 0)
+
+    SQLExecuter().delete_table("table1")

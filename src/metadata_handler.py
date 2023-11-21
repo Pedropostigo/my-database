@@ -9,6 +9,7 @@ class MetadataHandler:
     def create_table_metadata():
         table_metadata = {
             'table_name': 'undifined',
+            'table_columns': [],
             'table_num_blocks': 0
         }
         
